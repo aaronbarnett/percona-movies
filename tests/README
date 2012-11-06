@@ -1,0 +1,13 @@
+The aim behind these tests is to be generic and not rely too much on exact HTML results.  Students should be encouraged to tweak functionality if they think one particular part of the puzzle opens them up to spending many CPU cycles to deliver little functionality.
+
+For that reason we're (for now) using Selenium Grid Control.
+
+The Good: Easy to control from PHP.
+The Bad: Hard to generate massive, massive amounts of load.
+The Unfortunate: Doesn't have built in reporting features.
+
+== Future Plans ==
+
+Ideally response time should be measured as inclusive of all time it takes for a user to be able to complete their "task" - server side rendering time is only a part of this.
+
+With boomerang (a Yahoo! project) we should be able to capture a full profile including browser rendering time.  This opens some interesting opportunities!
