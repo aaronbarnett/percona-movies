@@ -1,5 +1,33 @@
 <?php
 
+function get_memcached(){
+	global $memcache;
+
+	if(!$memcahce) {
+		$memcache = new Memcached();
+		$memcache->addServer('localhost', 11211);
+	}
+
+	return $memcache;
+}
+
+function cache_get($key, Closure $f, $time) {
+	$val = get_memcached()->get($key);
+	if(!$val){
+		$val = $f();
+		echo "<!-- Caching " . $key . " => " . $val . " -->\n";
+		cache_set($key, $val, $time);
+	}else{
+		echo "<!-- Using Cached " . $key . " => " . $val . " -->\n";
+	}
+	return $val;
+}
+
+function cache_set($key, $value, $time) {
+	get_memcached()->set($key, $value, $time);
+}
+
+
 function mysql_query_wrapper($query) {
 	global $__queries;
 	
@@ -37,16 +65,22 @@ function debug_write($string) {
 }
 
 function get_number_of_users() {
-	$result = mysql_query_wrapper("SELECT count(*) as c FROM users");
-	return mysql_result($result,0,'c');
+	return cache_get("NUM_USERS", function(){
+		$result = mysql_query_wrapper("SELECT count(*) as c FROM users");
+		return mysql_result($result,0,'c');
+	}, 60);
 }
 function get_number_of_movies() {
-	$result = mysql_query_wrapper("SELECT count(*) as c FROM title");
-	return mysql_result($result,0,'c');
+	return cache_get("NUM_MOVIES", function(){
+		$result = mysql_query_wrapper("SELECT count(*) as c FROM title");
+		return mysql_result($result,0,'c');
+	}, 60);
 }
 function get_number_of_actors() {
-	$result = mysql_query_wrapper("SELECT count(*) as c FROM name");
-	return mysql_result($result,0,'c');
+	return cache_get("NUM_ACTORS", function(){
+		$result = mysql_query_wrapper("SELECT count(*) as c FROM name");
+		return mysql_result($result,0,'c');
+	}, 60);
 }
 
 function get_random_movie() {
@@ -80,37 +114,43 @@ function redirect_to($url) {
 }
 
 function get_comments() {
+	return cache_get("COMMENTS", function(){
 
-	$return = array();
-	$result = mysql_query_wrapper("SELECT * FROM comments ORDER BY id DESC limit 10");
-	while($row = mysql_fetch_assoc($result)) {
-		$return[] = $row;
-	}
+		$return = array();
+		$result = mysql_query_wrapper("SELECT * FROM comments ORDER BY id DESC limit 10");
+		while($row = mysql_fetch_assoc($result)) {
+			$return[] = $row;
+		}
 
-	return $return;
+		return $return;
+	}, 30);
 
 }
 
 
 function get_being_viewed($limit=5) {
-	$return = array();
-	$result = mysql_query_wrapper("SELECT DISTINCT type, viewed_id FROM page_views ORDER BY id DESC LIMIT $limit");
-	while($row = mysql_fetch_assoc($result)) {
-		$return[] = $row;
-	}
-	
-	return $return;
+	return cache_get("BEING_VIEWED", function(){
+		$return = array();
+		$result = mysql_query_wrapper("SELECT DISTINCT type, viewed_id FROM page_views ORDER BY id DESC LIMIT $limit");
+		while($row = mysql_fetch_assoc($result)) {
+			$return[] = $row;
+		}
+		
+		return $return;
+	}, 10);
 }
 
 
 function get_users_online() {
-	$return = array();
-	$result = mysql_query_wrapper("SELECT * FROM users WHERE last_login_date > NOW()-INTERVAL 10 MINUTE ORDER BY last_login_date DESC LIMIT 10");
-	while($row = mysql_fetch_assoc($result)) {
-		$return[] = $row['id'];
-	}
-	
-	return $return;
+	return cache_get("USERS_ONLINE", function(){
+		$return = array();
+		$result = mysql_query_wrapper("SELECT * FROM users WHERE last_login_date > NOW()-INTERVAL 10 MINUTE ORDER BY last_login_date DESC LIMIT 10");
+		while($row = mysql_fetch_assoc($result)) {
+			$return[] = $row['id'];
+		}
+		
+		return $return;
+	}, 60);
 }
 
 function update_page_views($type, $id) {
